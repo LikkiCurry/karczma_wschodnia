@@ -1,69 +1,87 @@
-import Image from "next/image";
+import Link from 'next/link';
 
-export default function Home() {
+// Funkcja pobierająca artykuły z Twojego Drupala przez JSON:API
+async function getArticles() {
+  const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
+  
+  if (!drupalUrl) {
+    return [];
+  }
+
+  try {
+    const res = await fetch(`${drupalUrl}/jsonapi/node/article`, {
+      cache: 'no-store', // Pobiera świeże dane przy każdym odświeżeniu
+    });
+
+    if (!res.ok) {
+      throw new Error('Nie udało się pobrać danych z Drupala');
+    }
+
+    const data = await res.json();
+    return data.data || [];
+  } catch (error) {
+    console.error('Błąd połączenia z Drupalem:', error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  const articles = await getArticles();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.js
-            </code>{" "}
-            file.
+    <main className="min-h-screen bg-[#0F0D0B] text-[#E5E0D8] p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Nagłówek w klimacie Karczmy */}
+        <header className="mb-12 text-center border-b border-[#3D3224] pb-6">
+          <h1 className="text-4xl font-serif font-bold text-[#D4AF37] mb-2">
+            🍻 Karczma Wschodnia
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-[#9C9387] italic">
+            Kroniki, wieści i poradniki ze świata gier
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </header>
+
+        {/* Sekcja listy wpisów */}
+        <section>
+          <h2 className="text-2xl font-serif text-[#D4AF37] mb-6">
+            Ostatnie gawędy z ogniska:
+          </h2>
+
+          {articles.length === 0 ? (
+            <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
+              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub trwa łączenie z Drupalem...</p>
+              <p className="text-xs text-stone-500">
+                Upewnij się, że w Drupalu opublikowano przynajmniej jeden artykuł.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {articles.map((article) => {
+                const title = article.attributes.title;
+                const bodyHtml = article.attributes.body?.processed || 'Brak treści wpisu.';
+
+                return (
+                  <article 
+                    key={article.id}
+                    className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg shadow-md"
+                  >
+                    <h3 className="text-xl font-bold text-white mb-3">
+                      {title}
+                    </h3>
+                    <div 
+                      className="text-[#C4BDB2] text-sm leading-relaxed line-clamp-3 mb-4"
+                      dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                    />
+                    <span className="text-xs font-mono text-[#D4AF37]">
+                      Wpis z Drupala (JSON:API)
+                    </span>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
