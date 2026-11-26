@@ -18,31 +18,40 @@ export default function Home() {
       return;
     }
 
-    // Pobieramy artykuły wraz z obrazkami i taksonomią (field_tags / field_kategoria - dopasujemy do Twojego pola)
-    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_tags`)
+    // Pobieramy artykuły wraz z obrazkami oraz powiązanymi taksonomiami (tagi i rodzaj artykułu)
+    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_tags,field_rodzaj_artykulu`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
         const included = json.included || [];
 
         const enrichedArticles = rawArticles.map((article) => {
-          // Obsługa obrazka
+          // 1. Obsługa obrazka głównego
           const imageId = article.relationships?.field_image?.data?.id;
           const imageObj = included.find((item) => item.id === imageId);
           const imageUrl = imageObj?.attributes?.uri?.url
             ? `${drupalUrl}${imageObj.attributes.uri.url}`
             : null;
 
-          // Pobieranie nazwy kategorii/taksonomii z relacji (sprawdzamy field_tags lub field_kategoria)
-          let categoryName = 'Gry'; // Domyślna kategoria zastępcza
+          // 2. Pobieranie kategorii głównej (np. Gry, Pokémon, Retrogaming)
+          let categoryName = 'Gry';
           const tagsData = article.relationships?.field_tags?.data;
-          
           if (tagsData) {
-            // Jeśli tagi są tablicą lub pojedynczym obiektem
             const tagId = Array.isArray(tagsData) ? tagsData[0]?.id : tagsData.id;
             const tagObj = included.find((item) => item.id === tagId);
             if (tagObj?.attributes?.name) {
               categoryName = tagObj.attributes.name;
+            }
+          }
+
+          // 3. Pobieranie rodzaju artykułu (np. Lore, Poradnik, Retrospektywa, Felieton)
+          let articleType = 'Publicystyka';
+          const typeData = article.relationships?.field_rodzaj_artykulu?.data;
+          if (typeData) {
+            const typeId = Array.isArray(typeData) ? typeData[0]?.id : typeData.id;
+            const typeObj = included.find((item) => item.id === typeId);
+            if (typeObj?.attributes?.name) {
+              articleType = typeObj.attributes.name;
             }
           }
 
@@ -52,6 +61,7 @@ export default function Home() {
             bodyHtml: article.attributes?.body?.processed || '',
             summary: article.attributes?.body?.summary || '',
             category: categoryName,
+            articleType: articleType,
             created: article.attributes?.created
               ? new Date(article.attributes.created).toLocaleDateString('pl-PL', {
                   day: 'numeric',
@@ -72,10 +82,13 @@ export default function Home() {
       });
   }, []);
 
-  // Filtrowanie artykułów w zależności od wybranej kategorii na pasku
+  // Filtrowanie artykułów po kategorii lub rodzaju artykułu
   const filteredArticles = selectedCategory === 'Wszystkie'
     ? articles
-    : articles.filter(article => article.category.toLowerCase() === selectedCategory.toLowerCase());
+    : articles.filter(article => 
+        article.category.toLowerCase() === selectedCategory.toLowerCase() ||
+        article.articleType.toLowerCase() === selectedCategory.toLowerCase()
+      );
 
   const featuredArticle = filteredArticles[0];
   const gridArticles = filteredArticles.slice(1);
@@ -97,13 +110,13 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Dynamiczne menu kategorii dopasowane do taksonomii Drupala */}
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#B8AFA3]">
-            {['Wszystkie', 'Gry', 'Retrogaming', 'Popkultura'].map((cat) => (
+          {/* Menu kategorii i formatów */}
+          <div className="hidden lg:flex items-center gap-4 text-sm font-medium text-[#B8AFA3]">
+            {['Wszystkie', 'Retrospektywa', 'Lore', 'Poradnik', 'Analiza', 'Gry', 'Pokémon', 'Piłka nożna', 'Popkultura'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`pb-1 transition border-b-2 ${
+                className={`pb-1 transition border-b-2 text-xs uppercase tracking-wider ${
                   selectedCategory === cat
                     ? 'text-[#D4AF37] border-[#D4AF37]'
                     : 'border-transparent hover:text-white'
@@ -125,12 +138,12 @@ export default function Home() {
           </div>
         ) : filteredArticles.length === 0 ? (
           <div className="bg-[#16130F] border border-[#2A231B] p-12 rounded-xl text-center">
-            <p className="text-xl font-serif text-[#D4AF37] mb-2">Brak wpisów w kategorii „{selectedCategory}”</p>
-            <p className="text-sm text-[#8C8275]">Opublikuj artykuł z tym tagiem w Drupalu lub wybierz inną kategorię.</p>
+            <p className="text-xl font-serif text-[#D4AF37] mb-2">Brak wpisów dla wyboru: „{selectedCategory}”</p>
+            <p className="text-sm text-[#8C8275]">Opublikuj artykuł w tej taksonomii w Drupalu lub wybierz inną kategorię.</p>
           </div>
         ) : (
           <>
-            {/* 1. SEKCJA HERO - TEMAT NUMERU (Zawsze z aktualnie filtrowanych) */}
+            {/* 1. SEKCJA HERO - TEMAT NUMERU */}
             {featuredArticle && (
               <section className="mb-14">
                 <div className="group relative bg-[#16130F] border border-[#2A231B] rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 shadow-2xl hover:border-[#4A3D2F] transition">
@@ -146,14 +159,19 @@ export default function Home() {
                         <span className="text-6xl opacity-20">⚔️</span>
                       </div>
                     )}
-                    <span className="absolute top-4 left-4 bg-[#D4AF37] text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
-                      {featuredArticle.category}
-                    </span>
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      <span className="bg-[#D4AF37] text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
+                        {featuredArticle.articleType}
+                      </span>
+                      <span className="bg-black/70 backdrop-blur text-[#E8E2D9] text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded border border-[#3D3224]">
+                        {featuredArticle.category}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="lg:col-span-5 p-8 lg:p-10 flex flex-col justify-center">
                     <div className="text-xs uppercase tracking-widest text-[#D4AF37] mb-3 font-semibold">
-                      {featuredArticle.created}
+                      Opublikowano: {featuredArticle.created}
                     </div>
                     <Link href={`/artykul/${featuredArticle.id}`}>
                       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold text-white leading-tight mb-4 group-hover:text-[#D4AF37] transition">
@@ -179,12 +197,12 @@ export default function Home() {
               </section>
             )}
 
-            {/* 2. UKŁAD DWUKOLUMNOWY: SIATKA ARTYKUŁÓW + SIDEBAR */}
+            {/* 2. SIATKA ARTYKUŁÓW + SIDEBAR */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               <div className="lg:col-span-8">
                 <div className="flex items-center justify-between border-b border-[#2A231B] pb-4 mb-8">
                   <h2 className="text-xl font-serif font-bold uppercase tracking-wider text-white">
-                    {selectedCategory === 'Wszystkie' ? 'Najnowsze w Karczmie' : `Kategoria: ${selectedCategory}`}
+                    {selectedCategory === 'Wszystkie' ? 'Najnowsze w Karczmie' : `Filtr: ${selectedCategory}`}
                   </h2>
                   <span className="text-xs text-[#8C8275]">
                     Wyników: {filteredArticles.length}
@@ -193,7 +211,7 @@ export default function Home() {
 
                 {gridArticles.length === 0 ? (
                   <p className="text-sm text-[#8C8275] italic">
-                    Brak mniejszych wpisów w tej kategorii.
+                    Brak pozostałych wpisów w tym widoku.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -220,20 +238,26 @@ export default function Home() {
                         </Link>
 
                         <div className="p-6 flex-1 flex flex-col">
-                          <div className="text-[11px] uppercase tracking-wider text-[#D4AF37] mb-2">
-                            {article.category} • {article.created}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                              {article.articleType}
+                            </span>
+                            <span className="text-[11px] text-[#8C8275]">• {article.category}</span>
                           </div>
+                          
                           <Link href={`/artykul/${article.id}`}>
                             <h3 className="text-xl font-serif font-bold text-white leading-snug mb-3 group-hover:text-[#D4AF37] transition">
                               {article.title}
                             </h3>
                           </Link>
+                          
                           <div
                             className="text-[#9E9589] text-sm leading-relaxed line-clamp-3 mb-4 flex-1"
                             dangerouslySetInnerHTML={{
                               __html: article.summary || article.bodyHtml,
                             }}
                           />
+                          
                           <Link
                             href={`/artykul/${article.id}`}
                             className="text-xs font-semibold uppercase tracking-wider text-[#B8AFA3] group-hover:text-[#D4AF37] transition mt-auto pt-3 border-t border-[#241E17]"
@@ -254,11 +278,11 @@ export default function Home() {
                     O Karczmie Wschodniej
                   </h3>
                   <p className="text-sm text-[#A89F93] leading-relaxed mb-4">
-                    Miejsce przy ognisku dla fanów klasycznych gier, retrospektyw, ukrytych motywów fabularnych i głębokiej popkultury.
+                    Magazyn o grach, retrogamingu, głębokim lore oraz popkulturze. Rozpalamy ognisko dla poszukiwaczy dobrej publicystyki.
                   </p>
                   <div className="h-px bg-[#2A231B] my-4" />
                   <p className="text-xs text-[#8C8275]">
-                    Nowe teksty i materiały wideo co tydzień.
+                    Nowe materiały, analizy i poradniki regularnie.
                   </p>
                 </div>
 
@@ -272,12 +296,17 @@ export default function Home() {
                         <span className="text-lg font-serif font-bold text-[#D4AF37]/60 group-hover:text-[#D4AF37]">
                           0{idx + 1}
                         </span>
-                        <Link
-                          href={`/artykul/${item.id}`}
-                          className="text-sm font-medium text-[#D1C9BE] group-hover:text-white leading-snug transition"
-                        >
-                          {item.title}
-                        </Link>
+                        <div>
+                          <Link
+                            href={`/artykul/${item.id}`}
+                            className="text-sm font-medium text-[#D1C9BE] group-hover:text-white leading-snug transition block"
+                          >
+                            {item.title}
+                          </Link>
+                          <span className="text-[11px] text-[#D4AF37]">
+                            {item.articleType} • {item.category}
+                          </span>
+                        </div>
                       </li>
                     ))}
                   </ul>
