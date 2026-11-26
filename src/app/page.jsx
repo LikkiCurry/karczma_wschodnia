@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
@@ -16,17 +15,15 @@ export default function Home() {
     }
 
     fetch(`${drupalUrl}/jsonapi/node/article`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Błąd pobierania');
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        setArticles(data.data || []);
+        if (data && data.data) {
+          setArticles(data.data);
+        }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Błąd połączenia z Drupalem:', err);
-        setError(true);
+        console.error('Błąd pobierania danych:', err);
         setLoading(false);
       });
   }, []);
@@ -52,18 +49,18 @@ export default function Home() {
             <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
               <p className="text-[#9C9387]">Rozpalanie ogniska i łączenie z Drupalem...</p>
             </div>
-          ) : error || articles.length === 0 ? (
+          ) : articles.length === 0 ? (
             <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
-              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub problem z połączeniem.</p>
+              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub blokada CORS.</p>
               <p className="text-xs text-stone-500">
-                Upewnij się, że w Drupalu opublikowano przynajmniej jeden artykuł.
+                Upewnij się, że w pliku services.yml na Webd.pl dodano adres Vercela.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
               {articles.map((article) => {
-                const title = article.attributes.title;
-                const bodyHtml = article.attributes.body?.processed || 'Brak treści wpisu.';
+                const title = article.attributes?.title || 'Bez tytułu';
+                const bodyHtml = article.attributes?.body?.processed || 'Brak treści wpisu.';
 
                 return (
                   <article 
@@ -77,9 +74,6 @@ export default function Home() {
                       className="text-[#C4BDB2] text-sm leading-relaxed line-clamp-3 mb-4"
                       dangerouslySetInnerHTML={{ __html: bodyHtml }}
                     />
-                    <span className="text-xs font-mono text-[#D4AF37]">
-                      Wpis z Drupala (JSON:API)
-                    </span>
                   </article>
                 );
               })}
