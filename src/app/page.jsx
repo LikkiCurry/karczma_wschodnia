@@ -10,7 +10,6 @@ export default function Home() {
   const [currentYear, setCurrentYear] = useState('2026');
 
   useEffect(() => {
-    // Bezpieczne ustawienie roku w przeglądarce
     setCurrentYear(new Date().getFullYear());
 
     const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
@@ -19,24 +18,40 @@ export default function Home() {
       return;
     }
 
-    fetch(`${drupalUrl}/jsonapi/node/article`)
+    // Pobieramy artykuły wraz z obrazkami i taksonomią (field_tags / field_kategoria - dopasujemy do Twojego pola)
+    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_tags`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
         const included = json.included || [];
 
         const enrichedArticles = rawArticles.map((article) => {
+          // Obsługa obrazka
           const imageId = article.relationships?.field_image?.data?.id;
           const imageObj = included.find((item) => item.id === imageId);
           const imageUrl = imageObj?.attributes?.uri?.url
             ? `${drupalUrl}${imageObj.attributes.uri.url}`
             : null;
 
+          // Pobieranie nazwy kategorii/taksonomii z relacji (sprawdzamy field_tags lub field_kategoria)
+          let categoryName = 'Gry'; // Domyślna kategoria zastępcza
+          const tagsData = article.relationships?.field_tags?.data;
+          
+          if (tagsData) {
+            // Jeśli tagi są tablicą lub pojedynczym obiektem
+            const tagId = Array.isArray(tagsData) ? tagsData[0]?.id : tagsData.id;
+            const tagObj = included.find((item) => item.id === tagId);
+            if (tagObj?.attributes?.name) {
+              categoryName = tagObj.attributes.name;
+            }
+          }
+
           return {
             id: article.id,
             title: article.attributes?.title || 'Bez tytułu',
             bodyHtml: article.attributes?.body?.processed || '',
             summary: article.attributes?.body?.summary || '',
+            category: categoryName,
             created: article.attributes?.created
               ? new Date(article.attributes.created).toLocaleDateString('pl-PL', {
                   day: 'numeric',
@@ -57,8 +72,13 @@ export default function Home() {
       });
   }, []);
 
-  const featuredArticle = articles[0];
-  const gridArticles = articles.slice(1);
+  // Filtrowanie artykułów w zależności od wybranej kategorii na pasku
+  const filteredArticles = selectedCategory === 'Wszystkie'
+    ? articles
+    : articles.filter(article => article.category.toLowerCase() === selectedCategory.toLowerCase());
+
+  const featuredArticle = filteredArticles[0];
+  const gridArticles = filteredArticles.slice(1);
 
   return (
     <div className="min-h-screen bg-[#0D0B09] text-[#E8E2D9] font-sans selection:bg-[#D4AF37] selection:text-black">
@@ -77,8 +97,9 @@ export default function Home() {
             </div>
           </Link>
 
+          {/* Dynamiczne menu kategorii dopasowane do taksonomii Drupala */}
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#B8AFA3]">
-            {['Wszystkie', 'Gry', 'Retrospektywy', 'Poradniki', 'Tropami Fikcji'].map((cat) => (
+            {['Wszystkie', 'Gry', 'Retrogaming', 'Popkultura'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
@@ -102,13 +123,14 @@ export default function Home() {
             <div className="inline-block w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-[#8C8275] font-serif italic">Otwieranie ksiąg Karczmy...</p>
           </div>
-        ) : articles.length === 0 ? (
+        ) : filteredArticles.length === 0 ? (
           <div className="bg-[#16130F] border border-[#2A231B] p-12 rounded-xl text-center">
-            <p className="text-xl font-serif text-[#D4AF37] mb-2">Kroniki są jeszcze puste</p>
-            <p className="text-sm text-[#8C8275]">Opublikuj pierwszy wpis w Drupalu, aby zapełnić okładkę.</p>
+            <p className="text-xl font-serif text-[#D4AF37] mb-2">Brak wpisów w kategorii „{selectedCategory}”</p>
+            <p className="text-sm text-[#8C8275]">Opublikuj artykuł z tym tagiem w Drupalu lub wybierz inną kategorię.</p>
           </div>
         ) : (
           <>
+            {/* 1. SEKCJA HERO - TEMAT NUMERU (Zawsze z aktualnie filtrowanych) */}
             {featuredArticle && (
               <section className="mb-14">
                 <div className="group relative bg-[#16130F] border border-[#2A231B] rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 shadow-2xl hover:border-[#4A3D2F] transition">
@@ -125,13 +147,13 @@ export default function Home() {
                       </div>
                     )}
                     <span className="absolute top-4 left-4 bg-[#D4AF37] text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
-                      Temat Numeru
+                      {featuredArticle.category}
                     </span>
                   </div>
 
                   <div className="lg:col-span-5 p-8 lg:p-10 flex flex-col justify-center">
                     <div className="text-xs uppercase tracking-widest text-[#D4AF37] mb-3 font-semibold">
-                      Publicystyka • {featuredArticle.created}
+                      {featuredArticle.created}
                     </div>
                     <Link href={`/artykul/${featuredArticle.id}`}>
                       <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold text-white leading-tight mb-4 group-hover:text-[#D4AF37] transition">
@@ -157,20 +179,21 @@ export default function Home() {
               </section>
             )}
 
+            {/* 2. UKŁAD DWUKOLUMNOWY: SIATKA ARTYKUŁÓW + SIDEBAR */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               <div className="lg:col-span-8">
                 <div className="flex items-center justify-between border-b border-[#2A231B] pb-4 mb-8">
                   <h2 className="text-xl font-serif font-bold uppercase tracking-wider text-white">
-                    Najnowsze w Karczmie
+                    {selectedCategory === 'Wszystkie' ? 'Najnowsze w Karczmie' : `Kategoria: ${selectedCategory}`}
                   </h2>
                   <span className="text-xs text-[#8C8275]">
-                    Liczba wpisów: {articles.length}
+                    Wyników: {filteredArticles.length}
                   </span>
                 </div>
 
                 {gridArticles.length === 0 ? (
                   <p className="text-sm text-[#8C8275] italic">
-                    Dodaj więcej artykułów w Drupalu, aby zapełnić siatkę redakcyjną.
+                    Brak mniejszych wpisów w tej kategorii.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -198,7 +221,7 @@ export default function Home() {
 
                         <div className="p-6 flex-1 flex flex-col">
                           <div className="text-[11px] uppercase tracking-wider text-[#D4AF37] mb-2">
-                            Artykuł • {article.created}
+                            {article.category} • {article.created}
                           </div>
                           <Link href={`/artykul/${article.id}`}>
                             <h3 className="text-xl font-serif font-bold text-white leading-snug mb-3 group-hover:text-[#D4AF37] transition">
@@ -224,6 +247,7 @@ export default function Home() {
                 )}
               </div>
 
+              {/* SIDEBAR */}
               <aside className="lg:col-span-4 space-y-8">
                 <div className="bg-[#16130F] border border-[#2A231B] p-6 rounded-xl">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-[#D4AF37] mb-3">
