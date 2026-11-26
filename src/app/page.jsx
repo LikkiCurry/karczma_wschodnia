@@ -18,8 +18,8 @@ export default function Home() {
       return;
     }
 
-    // Pobieramy artykuły wraz z obrazkami oraz powiązanymi taksonomiami (tagi i rodzaj artykułu)
-    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_tags,field_rodzaj_artykulu`)
+    // Poprawione zapytanie z uwzględnieniem field_category i field_rodzaj_artykulu
+    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_category,field_rodzaj_artykulu`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
@@ -33,18 +33,18 @@ export default function Home() {
             ? `${drupalUrl}${imageObj.attributes.uri.url}`
             : null;
 
-          // 2. Pobieranie kategorii głównej (np. Gry, Pokémon, Retrogaming)
+          // 2. Pobieranie kategorii głównej z pola field_category
           let categoryName = 'Gry';
-          const tagsData = article.relationships?.field_tags?.data;
-          if (tagsData) {
-            const tagId = Array.isArray(tagsData) ? tagsData[0]?.id : tagsData.id;
-            const tagObj = included.find((item) => item.id === tagId);
-            if (tagObj?.attributes?.name) {
-              categoryName = tagObj.attributes.name;
+          const categoryData = article.relationships?.field_category?.data;
+          if (categoryData) {
+            const catId = Array.isArray(categoryData) ? categoryData[0]?.id : categoryData.id;
+            const catObj = included.find((item) => item.id === catId);
+            if (catObj?.attributes?.name) {
+              categoryName = catObj.attributes.name;
             }
           }
 
-          // 3. Pobieranie rodzaju artykułu (np. Lore, Poradnik, Retrospektywa, Felieton)
+          // 3. Pobieranie rodzaju artykułu z pola field_rodzaj_artykulu
           let articleType = 'Publicystyka';
           const typeData = article.relationships?.field_rodzaj_artykulu?.data;
           if (typeData) {
