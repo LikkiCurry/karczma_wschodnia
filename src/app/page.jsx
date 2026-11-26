@@ -18,16 +18,16 @@ export default function Home() {
       return;
     }
 
-    // Poprawione zapytanie z uwzględnieniem field_category i field_rodzaj_artykulu
-    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image,field_category,field_rodzaj_artykulu`)
+    // Używamy prawidłowej nazwy pola graficznego z Drupala: field_hero_image
+    fetch(`${drupalUrl}/jsonapi/node/article?include=field_hero_image,field_category,field_rodzaj_artykulu`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
         const included = json.included || [];
 
         const enrichedArticles = rawArticles.map((article) => {
-          // 1. Obsługa obrazka głównego
-          const imageId = article.relationships?.field_image?.data?.id;
+          // 1. Obsługa obrazka głównego przez field_hero_image
+          const imageId = article.relationships?.field_hero_image?.data?.id;
           const imageObj = included.find((item) => item.id === imageId);
           const imageUrl = imageObj?.attributes?.uri?.url
             ? `${drupalUrl}${imageObj.attributes.uri.url}`
