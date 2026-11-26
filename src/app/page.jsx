@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
-
 export default function Home() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,14 +15,12 @@ export default function Home() {
       return;
     }
 
-    // Pobieramy artykuły wraz z dołączonymi obrazkami (include=field_image)
     fetch(`${drupalUrl}/jsonapi/node/article?include=field_image&sort=-created`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
         const included = json.included || [];
 
-        // Mapujemy obrazki z sekcji 'included' do odpowiednich artykułów
         const enrichedArticles = rawArticles.map((article) => {
           const imageId = article.relationships?.field_image?.data?.id;
           const imageObj = included.find((item) => item.id === imageId);
@@ -57,7 +53,6 @@ export default function Home() {
       });
   }, []);
 
-  // Podział artykułów: pierwszy idzie na "Okładkę" (Hero), reszta do siatki
   const featuredArticle = articles[0];
   const gridArticles = articles.slice(1);
 
@@ -78,7 +73,6 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Menu kategorii */}
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#B8AFA3]">
             {['Wszystkie', 'Gry', 'Retrospektywy', 'Poradniki', 'Tropami Fikcji'].map((cat) => (
               <button
@@ -111,11 +105,9 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {/* 1. SEKCJA HERO - TEMAT NUMERU */}
             {featuredArticle && (
               <section className="mb-14">
                 <div className="group relative bg-[#16130F] border border-[#2A231B] rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 shadow-2xl hover:border-[#4A3D2F] transition">
-                  {/* Zdjęcie okładkowe */}
                   <div className="lg:col-span-7 relative min-h-[300px] lg:min-h-[420px] bg-[#1F1A14] overflow-hidden">
                     {featuredArticle.imageUrl ? (
                       <img
@@ -133,7 +125,6 @@ export default function Home() {
                     </span>
                   </div>
 
-                  {/* Treść wyróżniona */}
                   <div className="lg:col-span-5 p-8 lg:p-10 flex flex-col justify-center">
                     <div className="text-xs uppercase tracking-widest text-[#D4AF37] mb-3 font-semibold">
                       Publicystyka • {featuredArticle.created}
@@ -162,9 +153,7 @@ export default function Home() {
               </section>
             )}
 
-            {/* 2. UKŁAD DWUKOLUMNOWY: SIATKA ARTYKUŁÓW + SIDEBAR */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-              {/* LEWA KOLUMNA (8/12) - NAJNOWSZE WPISY */}
               <div className="lg:col-span-8">
                 <div className="flex items-center justify-between border-b border-[#2A231B] pb-4 mb-8">
                   <h2 className="text-xl font-serif font-bold uppercase tracking-wider text-white">
@@ -186,7 +175,6 @@ export default function Home() {
                         key={article.id}
                         className="group bg-[#16130F] border border-[#2A231B] rounded-xl overflow-hidden flex flex-col hover:border-[#4A3D2F] transition shadow-lg"
                       >
-                        {/* Miniatura 16:9 */}
                         <Link
                           href={`/artykul/${article.id}`}
                           className="block relative aspect-video bg-[#1F1A14] overflow-hidden"
@@ -204,7 +192,6 @@ export default function Home() {
                           )}
                         </Link>
 
-                        {/* Opis karty */}
                         <div className="p-6 flex-1 flex flex-col">
                           <div className="text-[11px] uppercase tracking-wider text-[#D4AF37] mb-2">
                             Artykuł • {article.created}
@@ -233,9 +220,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* PRAWA KOLUMNA (4/12) - SIDEBAR REDAKCYJNY */}
               <aside className="lg:col-span-4 space-y-8">
-                {/* Boks o Karczmie */}
                 <div className="bg-[#16130F] border border-[#2A231B] p-6 rounded-xl">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-[#D4AF37] mb-3">
                     O Karczmie Wschodniej
@@ -249,7 +234,6 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Lista szybkiego dostępu (Top / Ostatnie) */}
                 <div className="bg-[#16130F] border border-[#2A231B] p-6 rounded-xl">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-white border-b border-[#2A231B] pb-3 mb-4">
                     Na skróty w kronikach
@@ -276,7 +260,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* STOPKA PORTALU */}
       <footer className="border-t border-[#2A231B] bg-[#0A0807] mt-20 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-[#756D62]">
           <div>© {new Date().getFullYear()} Karczma Wschodnia. Wszelkie prawa zastrzeżone.</div>
