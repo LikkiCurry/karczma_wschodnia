@@ -7,8 +7,12 @@ export default function Home() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('Wszystkie');
+  const [currentYear, setCurrentYear] = useState('2026');
 
   useEffect(() => {
+    // Bezpieczne ustawienie roku w przeglądarce
+    setCurrentYear(new Date().getFullYear());
+
     const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
     if (!drupalUrl) {
       setLoading(false);
@@ -262,7 +266,7 @@ export default function Home() {
 
       <footer className="border-t border-[#2A231B] bg-[#0A0807] mt-20 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-[#756D62]">
-          <div>© {new Date().getFullYear()} Karczma Wschodnia. Wszelkie prawa zastrzeżone.</div>
+          <div>© {currentYear} Karczma Wschodnia. Wszelkie prawa zastrzeżone.</div>
           <div>Napędzane przez Drupal Headless & Next.js</div>
         </div>
       </footer>
