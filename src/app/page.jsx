@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rawDebugData, setRawDebugData] = useState(null);
 
   useEffect(() => {
     const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
@@ -17,8 +18,10 @@ export default function Home() {
     fetch(`${drupalUrl}/jsonapi/node/article`)
       .then((res) => res.json())
       .then((data) => {
+        console.log('Dane z Drupala:', data);
         if (data && data.data) {
           setArticles(data.data);
+          setRawDebugData(data.data[0]); // Pokażemy strukturę pierwszego artykułu do wglądu
         }
         setLoading(false);
       })
@@ -51,16 +54,18 @@ export default function Home() {
             </div>
           ) : articles.length === 0 ? (
             <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
-              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub blokada CORS.</p>
+              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach.</p>
               <p className="text-xs text-stone-500">
-                Upewnij się, że w pliku services.yml na Webd.pl dodano adres Vercela.
+                Sprawdź w konsoli przeglądarki (F12), czy zapytanie przeszło pomyślnie.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
               {articles.map((article) => {
-                const title = article.attributes?.title || 'Bez tytułu';
-                const bodyHtml = article.attributes?.body?.processed || 'Brak treści wpisu.';
+                // Elastyczne pobieranie tytułu i treści z różnych struktur Drupala
+                const title = article.attributes?.title || article.title || 'Bez tytułu';
+                const bodyObj = article.attributes?.body || article.body;
+                const bodyHtml = typeof bodyObj === 'string' ? bodyObj : (bodyObj?.processed || 'Brak treści wpisu.');
 
                 return (
                   <article 
@@ -74,6 +79,9 @@ export default function Home() {
                       className="text-[#C4BDB2] text-sm leading-relaxed line-clamp-3 mb-4"
                       dangerouslySetInnerHTML={{ __html: bodyHtml }}
                     />
+                    <span className="text-xs font-mono text-[#D4AF37]">
+                      ID wpisu: {article.id}
+                    </span>
                   </article>
                 );
               })}
