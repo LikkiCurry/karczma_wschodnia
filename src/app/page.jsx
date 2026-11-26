@@ -46,7 +46,7 @@ export default function Home() {
 
           // 3. Pobieranie rodzaju artykułu (np. Lore, Poradnik, Retrospektywa, Felieton)
           let articleType = 'Publicystyka';
-          const typeData = article.relationships?.rodzaj_artykulu?.data;
+          const typeData = article.relationships?.field_rodzaj_artykulu?.data;
           if (typeData) {
             const typeId = Array.isArray(typeData) ? typeData[0]?.id : typeData.id;
             const typeObj = included.find((item) => item.id === typeId);
