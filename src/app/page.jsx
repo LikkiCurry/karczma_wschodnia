@@ -19,7 +19,7 @@ export default function Home() {
       return;
     }
 
-    fetch(`${drupalUrl}/jsonapi/node/article?include=field_image`)
+    fetch(`${drupalUrl}/jsonapi/node/article`)
       .then((res) => res.json())
       .then((json) => {
         const rawArticles = json.data || [];
