@@ -1,36 +1,35 @@
-import Link from 'next/link';
+'use client';
 
-// WYMUSZENIE TRYBU DYNAMICZNEGO (Next.js nie będzie próbował prerenderować strony statycznie)
-export const dynamic = 'force-dynamic';
+import { useState, useEffect } from 'react';
 
-async function getArticles() {
-  const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
-  
-  // Jeśli zmienna nie jest ustawiona, nie wywalaj błędu buildu, tylko zwróć pusto
-  if (!drupalUrl) {
-    console.warn("Brak zdefiniowanego adresu NEXT_PUBLIC_DRUPAL_URL");
-    return [];
-  }
+export default function Home() {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  try {
-    const res = await fetch(`${drupalUrl}/jsonapi/node/article`, {
-      cache: 'no-store', // Wyłącza statyczne cachowanie w czasie buildu dla dynamicznych danych
-    });
-
-    if (!res.ok) {
-      return [];
+  useEffect(() => {
+    const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
+    
+    if (!drupalUrl) {
+      setLoading(false);
+      return;
     }
 
-    const data = await res.json();
-    return data.data || [];
-  } catch (error) {
-    console.error('Błąd pobierania danych z Drupala podczas buildu:', error);
-    return []; // Zwracamy pustą tablicę, żeby Vercel nie przerwał budowania
-  }
-}
-
-export default async function Home() {
-  const articles = await getArticles();
+    fetch(`${drupalUrl}/jsonapi/node/article`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Błąd pobierania');
+        return res.json();
+      })
+      .then((data) => {
+        setArticles(data.data || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Błąd połączenia z Drupalem:', err);
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#0F0D0B] text-[#E5E0D8] p-8">
@@ -49,9 +48,16 @@ export default async function Home() {
             Ostatnie gawędy z ogniska:
           </h2>
 
-          {articles.length === 0 ? (
+          {loading ? (
             <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
-              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub trwa łączenie z Drupalem...</p>
+              <p className="text-[#9C9387]">Rozpalanie ogniska i łączenie z Drupalem...</p>
+            </div>
+          ) : error || articles.length === 0 ? (
+            <div className="bg-[#1A1612] border border-[#3D3224] p-6 rounded-lg text-center">
+              <p className="text-[#9C9387] mb-2">Brak wpisów w kronikach lub problem z połączeniem.</p>
+              <p className="text-xs text-stone-500">
+                Upewnij się, że w Drupalu opublikowano przynajmniej jeden artykuł.
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -71,6 +77,9 @@ export default async function Home() {
                       className="text-[#C4BDB2] text-sm leading-relaxed line-clamp-3 mb-4"
                       dangerouslySetInnerHTML={{ __html: bodyHtml }}
                     />
+                    <span className="text-xs font-mono text-[#D4AF37]">
+                      Wpis z Drupala (JSON:API)
+                    </span>
                   </article>
                 );
               })}
