@@ -1,5 +1,8 @@
 import Link from 'next/link';
 
+// WYMUSZENIE TRYBU DYNAMICZNEGO (Next.js nie będzie próbował prerenderować strony statycznie)
+export const dynamic = 'force-dynamic';
+
 async function getArticles() {
   const drupalUrl = process.env.NEXT_PUBLIC_DRUPAL_URL;
   
